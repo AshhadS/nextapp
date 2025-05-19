@@ -6,9 +6,10 @@ import { api } from '@/lib/api';
 interface MessageFormProps {
   user: any;
   onUpdateTyping: (isTyping: boolean) => Promise<void>;
+  recipientId?: string;
 }
 
-export const MessageForm = ({ user, onUpdateTyping }: MessageFormProps) => {
+export const MessageForm = ({ user, onUpdateTyping, recipientId }: MessageFormProps) => {
   const [newMessage, setNewMessage] = useState('');
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -57,7 +58,7 @@ export const MessageForm = ({ user, onUpdateTyping }: MessageFormProps) => {
         imageUrl = await uploadImage(selectedImage);
       }
 
-      await api.messages.send(newMessage.trim(), imageUrl);
+      await api.messages.send(newMessage.trim(), recipientId, imageUrl);
       
       setNewMessage('');
       setSelectedImage(null);
@@ -130,8 +131,7 @@ export const MessageForm = ({ user, onUpdateTyping }: MessageFormProps) => {
         <LoadingButton
           isLoading={isSending}
           text="Send"
-          loadingText="Sending..."
-          disabled={(!newMessage.trim() && !selectedImage) || !user}
+          loadingText="Sending..."          disabled={isSending || (!newMessage.trim() && !selectedImage)}
           className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>

@@ -18,6 +18,7 @@ export const LoadingButton = ({
 }: LoadingButtonProps) => (  <button
     {...props}
     type={type}
+    onClick={onClick}
     disabled={disabled || isLoading}
     className={`flex items-center justify-center gap-2 ${className} ${
       isLoading ? 'cursor-not-allowed opacity-75' : ''

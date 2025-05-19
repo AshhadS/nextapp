@@ -23,12 +23,14 @@ export async function POST(request: Request) {
       });
       if (error) throw error;
       return NextResponse.json({ user: data.user });
-    }
-
-    if (action === 'logout') {
+    }    if (action === 'logout') {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      return NextResponse.json({ success: true });
+      return NextResponse.json({ success: true }, {
+        headers: {
+          'Set-Cookie': 'sb-access-token=deleted; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT',
+        }
+      });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

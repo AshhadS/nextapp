@@ -31,18 +31,29 @@ export const api = {
     },
   },
 
-  messages: {
+  users: {
     get: async () => {
-      const res = await fetch('/api/messages');
+      const res = await fetch('/api/users');
+      if (!res.ok) throw new Error((await res.json()).error);
+      return res.json();
+    },
+  },
+
+  messages: {
+    get: async (recipientId?: string) => {
+      const url = recipientId 
+        ? `/api/messages?recipientId=${recipientId}`
+        : '/api/messages';
+      const res = await fetch(url);
       if (!res.ok) throw new Error((await res.json()).error);
       return res.json();
     },
 
-    send: async (content: string, imageUrl?: string) => {
+    send: async (content: string, recipientId?: string, imageUrl?: string) => {
       const res = await fetch('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, imageUrl }),
+        body: JSON.stringify({ content, recipientId, imageUrl }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
       return res.json();
