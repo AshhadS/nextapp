@@ -8,11 +8,10 @@ interface MessageFormProps {
     id: string;
     email?: string;
   } | null;
-  onUpdateTyping: (isTyping: boolean) => Promise<void>;
   recipientId?: string;
 }
 
-export const MessageForm = ({ user, onUpdateTyping, recipientId }: MessageFormProps) => {
+export const MessageForm = ({ user, recipientId }: MessageFormProps) => {
   const [newMessage, setNewMessage] = useState('');
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -48,50 +47,24 @@ export const MessageForm = ({ user, onUpdateTyping, recipientId }: MessageFormPr
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  };  const sendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmedMessage = newMessage.trim();
-    
-    console.log('Form submitted', {
-      message: trimmedMessage,
-      hasImage: !!selectedImage,
-      user,
-      isSending,
-      recipientId
-    });
-    
+  };  const sendMessage = async () => {
     if (!user) {
       console.error('No user found');
-      alert('Please log in to send messages');
       return;
     }
 
-    if (!trimmedMessage && !selectedImage) {
-      console.log('No content to send');
-      return;
-    }
-
-    if (isSending) {
-      console.log('Already sending a message');
+    if (!newMessage.trim() && !selectedImage) {
       return;
     }
 
     setIsSending(true);
     try {
-      let imageUrl = null;
+      let imageUrl;
       if (selectedImage) {
-        console.log('Uploading image...');
         imageUrl = await uploadImage(selectedImage);
-        console.log('Image uploaded:', imageUrl);
-      }console.log('Sending message:', {
-        content: newMessage.trim(),
-        recipientId,
-        imageUrl
-      });
-      
-      const result = await api.messages.send(newMessage.trim(), recipientId, imageUrl);
-      console.log('Send message result:', result);
-      
+      }
+
+      await api.messages.send(newMessage.trim(), recipientId, imageUrl);
       setNewMessage('');
       setSelectedImage(null);
       setImagePreview(null);
@@ -100,7 +73,7 @@ export const MessageForm = ({ user, onUpdateTyping, recipientId }: MessageFormPr
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      alert('Failed to send message: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      alert('Failed to send message. Please try again.');
     } finally {
       setIsSending(false);
     }
@@ -130,10 +103,7 @@ export const MessageForm = ({ user, onUpdateTyping, recipientId }: MessageFormPr
         <input
           type="text"
           value={newMessage}
-          onChange={(e) => {
-            setNewMessage(e.target.value);
-            onUpdateTyping(true);
-          }}
+          onChange={(e) => setNewMessage(e.target.value)}
           placeholder="Type your message..."
           disabled={isSending}
           className={`flex-1 rounded-lg border border-gray-300 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${

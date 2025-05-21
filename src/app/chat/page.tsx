@@ -37,15 +37,20 @@ const LoadingSpinner = () => (
 );
 
 export default function Chat() {
+  // Typing state removed for now
+  // const [typingUsers, setTypingUsers] = useState<TypingStatus[]>([]);
+
+  // Main state
   const [messages, setMessages] = useState<Message[]>([]);
-  const [typingUsers, setTypingUsers] = useState<TypingStatus[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const router = useRouter();
   const { user, setUser } = useAuthStore();
 
-  console.log('Current user state:', user); // Debug user state
+  // Debug user state
+  console.log('Current user state:', user); 
+
   // Single auth useEffect to handle all auth-related setup
   useEffect(() => {
     let authListener: any;
@@ -66,14 +71,14 @@ export default function Chat() {
         setUser(session.user);
         console.log('User set in auth store:', session.user);
 
-        // Initialize typing status
-        await supabase
+        // Initialize typing status - temporarily disabled
+        /*await supabase
           .from('typing_status')
           .upsert({
             id: session.user.id,
             is_typing: false,
             user_email: session.user.email
-          });
+          });*/
 
         // Fetch initial messages
         await fetchMessages();
@@ -111,9 +116,9 @@ export default function Chat() {
         authListener.unsubscribe();
       }
     };
-  }, [router, setUser]); // Only depend on router and setUser
+  }, [router, setUser]);
 
-  // Real-time updates effect
+  // Real-time updates effect - simplified to only handle messages
   useEffect(() => {
     const channel = supabase.channel('room1');
     
@@ -137,6 +142,7 @@ export default function Chat() {
           });
         }
       )
+      /* Typing status updates disabled
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'typing_status' },
         payload => {
@@ -149,7 +155,7 @@ export default function Chat() {
             return filtered;
           });
         }
-      )
+      )*/
       .subscribe();
 
     return () => {
@@ -157,15 +163,12 @@ export default function Chat() {
     };
   }, [selectedUser, user]);
 
+  // Cleanup effect simplified - typing functionality removed
   useEffect(() => {
     return () => {
-      if (user) {
-        api.typing.update(false).catch(error => {
-          console.error('Error clearing typing status:', error);
-        });
-      }
+      // Typing cleanup removed
     };
-  }, [user]);
+  }, []);
 
   const fetchMessages = async () => {
     if (!user) {
@@ -184,11 +187,7 @@ export default function Chat() {
   };  const handleSignOut = async () => {
     setIsSigningOut(true);
     try {
-      if (user) {
-        await api.typing.update(false);
-      }
       await api.auth.logout();
-      // Force a full page navigation to /auth/login
       router.push('/auth/login');
       router.refresh();
     } catch (error) {
@@ -199,13 +198,9 @@ export default function Chat() {
     }
   };
 
+  // Simplified without typing updates
   const handleUpdateTyping = async (isTyping: boolean) => {
-    if (!user) return;
-    try {
-      await api.typing.update(isTyping);
-    } catch (error) {
-      console.error('Error updating typing status:', error);
-    }
+    // Typing functionality disabled
   };
 
   return (
@@ -213,7 +208,7 @@ export default function Chat() {
       {/* Sidebar */}
       <div className="w-64 bg-white border-r border-gray-200 p-4">
         <UserList
-          currentUserId={user?.id}
+          currentUserId={user?.id || ''}
           onSelectUser={setSelectedUser}
           selectedUser={selectedUser}
         />
@@ -243,22 +238,6 @@ export default function Chat() {
               <LoadingSpinner />
             ) : (
               <>
-                {typingUsers.length > 0 && (
-                  <div className="flex items-center space-x-2 text-sm text-gray-500 p-2 bg-gray-50 rounded-lg">
-                    <div className="flex space-x-1">
-                      <span className="animate-bounce">•</span>
-                      <span className="animate-bounce [animation-delay:0.2s]">•</span>
-                      <span className="animate-bounce [animation-delay:0.4s]">•</span>
-                    </div>
-                    <span className="italic">
-                      {typingUsers
-                        .filter(u => u.user_email !== user?.email)
-                        .map(u => u.user_email)
-                        .join(', ')}{' '}
-                      {typingUsers.length === 1 ? 'is' : 'are'} typing...
-                    </span>
-                  </div>
-                )}
                 {messages.map((message) => (
                   <div
                     key={message.id}
