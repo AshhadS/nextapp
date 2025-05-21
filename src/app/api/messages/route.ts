@@ -6,7 +6,10 @@ export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const recipientId = url.searchParams.get('recipientId');
-    const supabase = createRouteHandlerClient({ cookies });    let query = supabase
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+
+    let query = supabase
       .from('messages')
       .select('*')
       .order('created_at', { ascending: true });
@@ -32,25 +35,43 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    console.log('Received message request');
+    
+    // Check content type
+    const contentType = request.headers.get('content-type');
+    if (contentType !== 'application/json') {
+      return NextResponse.json({ error: 'Content-Type must be application/json' }, { status: 400 });
+    }
+
     const { content, imageUrl, recipientId } = await request.json();
-    const supabase = createRouteHandlerClient({ cookies });
+    console.log('Message data:', { content, imageUrl, recipientId });
+    
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
     
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
+      console.error('No authenticated user found');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    console.log('Authenticated as user:', user.id);
+
+    if (!content && !imageUrl) {
+      return NextResponse.json({ error: 'Message must have content or an image' }, { status: 400 });
+    }
+
+    const messageData = {
+      content: content || '',
+      user_id: user.id,
+      user_email: user.email,
+      image_url: imageUrl,
+      recipient_id: recipientId || null,
+    };
+    console.log('Inserting message:', messageData);
 
     const { data, error } = await supabase
       .from('messages')
-      .insert([
-        {
-          content,
-          user_id: user.id,
-          user_email: user.email,
-          image_url: imageUrl,
-          recipient_id: recipientId || null,
-        },
-      ]);
+      .insert([messageData]);
 
     if (error) throw error;
     return NextResponse.json({ success: true });

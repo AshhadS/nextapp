@@ -6,7 +6,9 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "migrate": "ts-node src/scripts/migrate.ts",
+    "setup-db": "tsc src/scripts/setupDb3.ts --outDir dist/scripts && node dist/scripts/setupDb3.js"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.3",
@@ -15,7 +17,8 @@
     "@supabase/supabase-js": "^2.49.4",
     "next": "15.3.2",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "zustand": "^5.0.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -26,6 +29,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.3.2",
     "tailwindcss": "^4.1.6",
+    "ts-node": "^10.9.2",
     "typescript": "^5"
   }
 }

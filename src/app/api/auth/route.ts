@@ -5,7 +5,8 @@ import { NextResponse } from 'next/server';
 export async function POST(request: Request) {
   try {
     const { action, email, password } = await request.json();
-    const supabase = createRouteHandlerClient({ cookies });
+    const cookieStore = cookies();
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
     if (action === 'login') {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -14,16 +15,32 @@ export async function POST(request: Request) {
       });
       if (error) throw error;
       return NextResponse.json({ user: data.user });
-    }
-
-    if (action === 'register') {
+    }    if (action === 'register') {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
       });
       if (error) throw error;
+
+      if (data.user) {
+        // Create a profile for the new user
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: data.user.id,
+            username: email.split('@')[0],
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+        
+        if (profileError) {
+          console.error('Error creating profile:', profileError);
+          // Don't throw here as the user is already created
+        }
+      }
+      
       return NextResponse.json({ user: data.user });
-    }    if (action === 'logout') {
+    }if (action === 'logout') {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       return NextResponse.json({ success: true }, {

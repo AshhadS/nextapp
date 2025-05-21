@@ -4,7 +4,10 @@ import { LoadingButton } from './LoadingButton';
 import { api } from '@/lib/api';
 
 interface MessageFormProps {
-  user: any;
+  user: {
+    id: string;
+    email?: string;
+  } | null;
   onUpdateTyping: (isTyping: boolean) => Promise<void>;
   recipientId?: string;
 }
@@ -45,20 +48,49 @@ export const MessageForm = ({ user, onUpdateTyping, recipientId }: MessageFormPr
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  };
-
-  const sendMessage = async (e: React.FormEvent) => {
+  };  const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((!newMessage.trim() && !selectedImage) || !user || isSending) return;
+    const trimmedMessage = newMessage.trim();
+    
+    console.log('Form submitted', {
+      message: trimmedMessage,
+      hasImage: !!selectedImage,
+      user,
+      isSending,
+      recipientId
+    });
+    
+    if (!user) {
+      console.error('No user found');
+      alert('Please log in to send messages');
+      return;
+    }
+
+    if (!trimmedMessage && !selectedImage) {
+      console.log('No content to send');
+      return;
+    }
+
+    if (isSending) {
+      console.log('Already sending a message');
+      return;
+    }
 
     setIsSending(true);
     try {
       let imageUrl = null;
       if (selectedImage) {
+        console.log('Uploading image...');
         imageUrl = await uploadImage(selectedImage);
-      }
-
-      await api.messages.send(newMessage.trim(), recipientId, imageUrl);
+        console.log('Image uploaded:', imageUrl);
+      }console.log('Sending message:', {
+        content: newMessage.trim(),
+        recipientId,
+        imageUrl
+      });
+      
+      const result = await api.messages.send(newMessage.trim(), recipientId, imageUrl);
+      console.log('Send message result:', result);
       
       setNewMessage('');
       setSelectedImage(null);
@@ -68,6 +100,7 @@ export const MessageForm = ({ user, onUpdateTyping, recipientId }: MessageFormPr
       }
     } catch (error) {
       console.error('Error sending message:', error);
+      alert('Failed to send message: ' + (error instanceof Error ? error.message : 'Unknown error'));
     } finally {
       setIsSending(false);
     }
@@ -127,12 +160,13 @@ export const MessageForm = ({ user, onUpdateTyping, recipientId }: MessageFormPr
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
-        </label>
-        <LoadingButton
+        </label>      <LoadingButton
+          type="submit"
           isLoading={isSending}
           text="Send"
-          loadingText="Sending..."          disabled={isSending || (!newMessage.trim() && !selectedImage)}
-          className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          loadingText="Sending..."
+          disabled={isSending || (!newMessage.trim() && !selectedImage)}
+          className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
         />
       </div>
     </form>

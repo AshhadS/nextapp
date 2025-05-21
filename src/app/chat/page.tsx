@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { LoadingButton } from '@/components/LoadingButton';
 import { MessageForm } from '@/components/MessageForm';
 import { UserList } from '@/components/UserList';
+import { useAuthStore } from '@/lib/store';
 
 interface Message {
   id: number;
@@ -37,22 +38,83 @@ const LoadingSpinner = () => (
 
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [user, setUser] = useState<any>(null);
   const [typingUsers, setTypingUsers] = useState<TypingStatus[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const router = useRouter();
+  const { user, setUser } = useAuthStore();
 
+  console.log('Current user state:', user); // Debug user state
+  // Single auth useEffect to handle all auth-related setup
   useEffect(() => {
-    // Refresh messages when user changes
-    if (user) {
-      fetchMessages().finally(() => setIsLoading(false));
-    }
-  }, [selectedUser, user]);
+    let authListener: any;
+    
+    const setupAuth = async () => {
+      try {
+        // Get initial session and user
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log('Initial auth check:', session?.user || 'No session');
+        
+        if (!session?.user) {
+          console.log('No authenticated user found, redirecting to login');
+          router.push('/auth/login');
+          return;
+        }
 
+        // Set user in auth store
+        setUser(session.user);
+        console.log('User set in auth store:', session.user);
+
+        // Initialize typing status
+        await supabase
+          .from('typing_status')
+          .upsert({
+            id: session.user.id,
+            is_typing: false,
+            user_email: session.user.email
+          });
+
+        // Fetch initial messages
+        await fetchMessages();
+        setIsLoading(false);
+
+        // Set up auth state change listener
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+          console.log('Auth state changed:', event, newSession?.user);
+          
+          if (event === 'SIGNED_OUT' || !newSession) {
+            setUser(null);
+            router.push('/auth/login');
+            return;
+          }
+
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            setUser(newSession.user);
+            await fetchMessages();
+          }
+        });
+
+        authListener = subscription;
+      } catch (error) {
+        console.error('Error in auth setup:', error);
+        router.push('/auth/login');
+      }
+    };
+
+    setupAuth();
+
+    // Cleanup
+    return () => {
+      if (authListener) {
+        console.log('Cleaning up auth listener');
+        authListener.unsubscribe();
+      }
+    };
+  }, [router, setUser]); // Only depend on router and setUser
+
+  // Real-time updates effect
   useEffect(() => {
-    checkUser();
     const channel = supabase.channel('room1');
     
     channel
@@ -93,7 +155,7 @@ export default function Chat() {
     return () => {
       channel.unsubscribe();
     };
-  }, [selectedUser]);
+  }, [selectedUser, user]);
 
   useEffect(() => {
     return () => {
@@ -105,33 +167,19 @@ export default function Chat() {
     };
   }, [user]);
 
-  const checkUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      router.push('/auth/login');
-    } else {
-      setUser(user);
-      try {
-        const { error } = await supabase
-          .from('typing_status')
-          .upsert({
-            id: user.id,
-            is_typing: false,
-            user_email: user.email
-          });
-        if (error) console.error('Error initializing typing status:', error);
-      } catch (error) {
-        console.error('Error initializing typing status:', error);
-      }
-    }
-  };
-
   const fetchMessages = async () => {
+    if (!user) {
+      console.log('No user available to fetch messages');
+      return;
+    }
+    
     try {
       const { messages } = await api.messages.get(selectedUser?.id);
+      console.log('Fetched messages:', messages.length);
       setMessages(messages);
     } catch (error) {
       console.error('Error fetching messages:', error);
+      setMessages([]);
     }
   };  const handleSignOut = async () => {
     setIsSigningOut(true);

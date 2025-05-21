@@ -4,28 +4,24 @@ import { NextResponse } from 'next/server';
 
 export async function GET(request: Request) {
   const cookieStore = cookies();
-  const supabase = createRouteHandlerClient({ cookies });
+  const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
   try {
-    
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    console.log('Current user:', user.id);
+    }    console.log('Current user:', user.id);
     
-    const { data, error } = await supabase
+    // Get all profiles
+    const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
       .select('*');
 
-    if (error) {
-      console.error('Error fetching profiles:', error);
-      throw error;
+    if (profilesError) {
+      console.error('Error fetching profiles:', profilesError);
+      throw profilesError;
     }
-    
-    console.log('All profiles:', data);
-    
-    const otherUsers = data?.filter(profile => profile.id !== user.id) || [];
+      const otherUsers = profiles?.filter(profile => profile.id !== user.id) || [];
     console.log('Other users:', otherUsers);
     
     return NextResponse.json({ users: otherUsers });
